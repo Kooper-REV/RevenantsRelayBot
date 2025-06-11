@@ -1,3 +1,4 @@
+import sys
 import os
 import requests
 from flask import Flask, request
@@ -26,7 +27,7 @@ def get_webhook(topic_id):
 @app.route('/telegram', methods=['POST'])
 def telegram_webhook():
     data = request.json
-    print(">>> Données brutes reçues :", data)  # 💡 nouvelle ligne
+    print(">>> Données brutes reçues :", data, file=sys.stderr)  # 🪵 redirigé vers les logs Render
 
     message = data.get("message")
     if not message:
@@ -37,7 +38,7 @@ def telegram_webhook():
     avatar = None
 
     topic_id = str(message.get("message_thread_id", ""))
-    print(">>> Topic ID reçu :", topic_id)  # 👈 Affiche l’ID brut
+    print(">>> Topic ID reçu :", topic_id, file=sys.stderr)
 
     topic_name = TOPIC_MAP.get(topic_id, "inconnu")
 
