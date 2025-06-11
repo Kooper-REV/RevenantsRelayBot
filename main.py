@@ -26,8 +26,7 @@ def get_webhook(topic_id):
 @app.route('/telegram', methods=['POST'])
 def telegram_webhook():
     data = request.json
-
-    print(">>> Données reçues :", data)  # 👈 Ajoute ce log pour debug
+    print(">>> Données brutes reçues :", data)  # 💡 nouvelle ligne
 
     message = data.get("message")
     if not message:
