@@ -7,10 +7,10 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Association des topics Telegram avec les clés internes des webhooks
+# Association des IDs de topic Telegram avec les clés internes des webhooks
 TOPIC_MAP = {
-    "общий": "ru-general",
-    "genel": "tr-general",
+    "101": "ru-general",  # Remplace ces IDs par ceux affichés dans les logs
+    "102": "tr-general",
 }
 
 # Récupération des webhooks Discord depuis les variables d’environnement
@@ -19,31 +19,29 @@ DISCORD_WEBHOOKS = {
     "tr-general": os.getenv("DISCORD_WEBHOOK_TR_GENERAL"),
 }
 
-def get_webhook(topic_name):
-    internal_key = TOPIC_MAP.get(topic_name)
+def get_webhook(topic_id):
+    internal_key = TOPIC_MAP.get(topic_id)
     return DISCORD_WEBHOOKS.get(internal_key)
 
 @app.route('/telegram', methods=['POST'])
 def telegram_webhook():
     data = request.json
 
+    print(">>> message =", data.get("message"))  # LOG debug
     message = data.get("message")
     if not message:
         return "No message field", 400
 
     text = message.get("text", "")
-    username = message["from"].get("username", "Unknown")
-    avatar = None  # Telegram doesn't provide avatar by default
+    username = message["from"].get("first_name", "Unknown")  # Plus sûr que "username"
+    avatar = None  # Telegram ne fournit pas l’avatar
 
-    topic_name = None
-    if "message_thread_id" in message:
-        topic_name = message.get("forum_topic", {}).get("name")
-    else:
-        topic_name = "общий"  # fallback si aucun topic n’est envoyé
+    topic_id = str(message.get("message_thread_id"))
+    print(f">>> Topic ID reçu : {topic_id}")  # LOG debug
 
-    webhook_url = get_webhook(topic_name)
+    webhook_url = get_webhook(topic_id)
     if not webhook_url:
-        return f"No matching webhook for topic '{topic_name}'", 400
+        return f"No matching webhook for topic '{topic_id}'", 400
 
     payload = {
         "username": username,
