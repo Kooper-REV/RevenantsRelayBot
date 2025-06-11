@@ -27,21 +27,24 @@ def get_webhook(topic_id):
 def telegram_webhook():
     data = request.json
 
-    print(">>> message =", data.get("message"))  # LOG debug
+    print(">>> Données reçues :", data)  # 👈 Ajoute ce log pour debug
+
     message = data.get("message")
     if not message:
         return "No message field", 400
 
     text = message.get("text", "")
-    username = message["from"].get("first_name", "Unknown")  # Plus sûr que "username"
-    avatar = None  # Telegram ne fournit pas l’avatar
+    username = message["from"].get("username", "Unknown")
+    avatar = None
 
-    topic_id = str(message.get("message_thread_id"))
-    print(f">>> Topic ID reçu : {topic_id}")  # LOG debug
+    topic_id = str(message.get("message_thread_id", ""))
+    print(">>> Topic ID reçu :", topic_id)  # 👈 Affiche l’ID brut
 
-    webhook_url = get_webhook(topic_id)
+    topic_name = TOPIC_MAP.get(topic_id, "inconnu")
+
+    webhook_url = get_webhook(topic_name)
     if not webhook_url:
-        return f"No matching webhook for topic '{topic_id}'", 400
+        return f"No matching webhook for topic '{topic_name}'", 400
 
     payload = {
         "username": username,
