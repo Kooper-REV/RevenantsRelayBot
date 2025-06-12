@@ -1,11 +1,11 @@
 import sys
 import os
+import re
 import requests
 from flask import Flask, request
-
 from dotenv import load_dotenv
-load_dotenv()
 
+load_dotenv()
 app = Flask(__name__)
 
 # Mapping entre les hashtags et les noms internes de salons
@@ -38,12 +38,9 @@ def telegram_webhook():
     avatar = None
 
     topic_name = "inconnu"
-
-    import re
-match = re.search(r"#(\w+)", text)
-if match:
-    topic_name = match.group(1).lower()
-
+    match = re.search(r"#(\w+)", text)
+    if match:
+        topic_name = match.group(1).lower()
 
     print(">>> Hashtag extrait :", topic_name)
 
