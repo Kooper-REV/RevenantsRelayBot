@@ -59,6 +59,9 @@ def telegram_webhook():
     if avatar:
         payload["avatar_url"] = avatar
 
+    print(">>> Webhook utilisé :", webhook_url)
+    print(">>> Contenu envoyé :", payload)
+
     requests.post(webhook_url, json=payload)
     return "OK", 200
 
