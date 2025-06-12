@@ -8,26 +8,26 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Association des IDs de topic Telegram avec les clés internes des webhooks
+# Mapping entre les hashtags et les noms internes de salons
 TOPIC_MAP = {
-    "101": "ru-general",  # Remplace ces IDs par ceux affichés dans les logs
-    "102": "tr-general",
+    "общий": "ru-general",
+    "genel": "tr-general",
 }
 
-# Récupération des webhooks Discord depuis les variables d’environnement
+# Webhooks Discord associés
 DISCORD_WEBHOOKS = {
     "ru-general": os.getenv("DISCORD_WEBHOOK_RU_GENERAL"),
     "tr-general": os.getenv("DISCORD_WEBHOOK_TR_GENERAL"),
 }
 
-def get_webhook(topic_id):
-    internal_key = TOPIC_MAP.get(topic_id)
+def get_webhook(topic_name):
+    internal_key = TOPIC_MAP.get(topic_name)
     return DISCORD_WEBHOOKS.get(internal_key)
 
 @app.route('/telegram', methods=['POST'])
 def telegram_webhook():
     data = request.json
-    print(">>> Données brutes reçues :", data, file=sys.stderr)  # 🪵 redirigé vers les logs Render
+    print(">>> Données brutes reçues :", data)
 
     message = data.get("message")
     if not message:
@@ -37,10 +37,16 @@ def telegram_webhook():
     username = message["from"].get("username", "Unknown")
     avatar = None
 
-    topic_id = str(message.get("message_thread_id", ""))
-    print(">>> Topic ID reçu :", topic_id, file=sys.stderr)
+    topic_name = "inconnu"
 
-    topic_name = TOPIC_MAP.get(topic_id, "inconnu")
+    if "#" in text:
+        words = text.split()
+        for word in words:
+            if word.startswith("#"):
+                topic_name = word.lstrip("#").lower()
+                break
+
+    print(">>> Hashtag extrait :", topic_name)
 
     webhook_url = get_webhook(topic_name)
     if not webhook_url:
