@@ -39,12 +39,11 @@ def telegram_webhook():
 
     topic_name = "inconnu"
 
-    if "#" in text:
-        words = text.split()
-        for word in words:
-            if word.startswith("#"):
-                topic_name = word.lstrip("#").lower()
-                break
+    import re
+match = re.search(r"#(\w+)", text)
+if match:
+    topic_name = match.group(1).lower()
+
 
     print(">>> Hashtag extrait :", topic_name)
 
