@@ -1,65 +1,72 @@
-import sys
 import os
-import re
 import requests
 from flask import Flask, request
-from dotenv import load_dotenv
+from dotenv import load\_dotenv
 
-load_dotenv()
-app = Flask(__name__)
+load\_dotenv()
+
+app = Flask(**name**)
 
 # Mapping entre les hashtags et les noms internes de salons
-TOPIC_MAP = {
-    "общий": "ru-general",
-    "genel": "tr-general",
+
+TOPIC\_MAP = {
+"общий": "ru-general",
+"genel": "tr-general",
 }
 
 # Webhooks Discord associés
-DISCORD_WEBHOOKS = {
-    "ru-general": os.getenv("DISCORD_WEBHOOK_RU_GENERAL"),
-    "tr-general": os.getenv("DISCORD_WEBHOOK_TR_GENERAL"),
+
+DISCORD\_WEBHOOKS = {
+"ru-general": os.getenv("DISCORD\_WEBHOOK\_RU\_GENERAL"),
+"tr-general": os.getenv("DISCORD\_WEBHOOK\_TR\_GENERAL"),
 }
 
-def get_webhook(topic_name):
-    internal_key = TOPIC_MAP.get(topic_name)
-    return DISCORD_WEBHOOKS.get(internal_key)
+def get\_webhook(topic\_name):
+internal\_key = TOPIC\_MAP.get(topic\_name)
+return DISCORD\_WEBHOOKS.get(internal\_key)
 
-@app.route('/telegram', methods=['POST'])
-def telegram_webhook():
-    data = request.json
-    print(">>> Données brutes reçues :", data)
+@app.route('/telegram', methods=\['POST'])
+def telegram\_webhook():
+data = request.json
+print(">>> Données brutes reçues :", data)
 
-    message = data.get("message")
-    if not message:
-        return "No message field", 400
+```
+message = data.get("message")
+if not message:
+    return "No message field", 400
 
-    text = message.get("text", "")
-    username = message["from"].get("username", "Unknown")
-    avatar = None
+text = message.get("text", "")
+username = message["from"].get("username", "Unknown")
+avatar = None
 
-    topic_name = "inconnu"
-    match = re.search(r"#(\w+)", text)
-    if match:
-        topic_name = match.group(1).lower()
+topic_name = "inconnu"
 
-    print(">>> Hashtag extrait :", topic_name)
+if "#" in text:
+    words = text.split()
+    for word in words:
+        if word.startswith("#"):
+            topic_name = word.lstrip("#").lower()
+            break
 
-    webhook_url = get_webhook(topic_name)
-    if not webhook_url:
-        return f"No matching webhook for topic '{topic_name}'", 400
+print(">>> Hashtag extrait :", topic_name)
 
-    payload = {
-        "username": username,
-        "content": text,
-    }
-    if avatar:
-        payload["avatar_url"] = avatar
+webhook_url = get_webhook(topic_name)
+if not webhook_url:
+    return f"No matching webhook for topic '{topic_name}'", 400
 
-    print(">>> Webhook utilisé :", webhook_url)
-    print(">>> Contenu envoyé :", payload)
+payload = {
+    "username": username,
+    "content": text,
+}
+if avatar:
+    payload["avatar_url"] = avatar
 
-    requests.post(webhook_url, json=payload)
-    return "OK", 200
+print(">>> Webhook utilisé :", webhook_url)
+print(">>> Contenu envoyé :", payload)
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+requests.post(webhook_url, json=payload)
+return "OK", 200
+```
+
+if **name** == "**main**":
+app.run(host="0.0.0.0", port=10000)
