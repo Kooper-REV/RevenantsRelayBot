@@ -1,3 +1,4 @@
+
 import os
 import requests
 from flask import Flask, request
@@ -7,66 +8,68 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Mapping des hashtags vers les topics Discord
+# Mappage des ID Telegram vers les Webhooks Discord
+TELEGRAM_TO_DISCORD = {
+    int(os.getenv("TELEGRAM_CHAT_ID_RU")): os.getenv("DISCORD_WEBHOOK_URL_RU"),
+    int(os.getenv("TELEGRAM_CHAT_ID_TR")): os.getenv("DISCORD_WEBHOOK_URL_TR"),
+}
+
+# Mappage des hashtags vers les topics Discord
 TOPIC_MAP = {
     "общий": "ru-general",
     "genel": "tr-general",
 }
 
-# Mapping des Chat IDs Telegram vers les Webhooks Discord
-CHAT_ID_TO_WEBHOOK = {
-    int(os.getenv("TELEGRAM_CHAT_ID_RU")): os.getenv("DISCORD_WEBHOOK_URL_RU"),
-    int(os.getenv("TELEGRAM_CHAT_ID_TR")): os.getenv("DISCORD_WEBHOOK_URL_TR"),
-}
-
-
-def extraire_hashtag(texte):
-    mots = texte.split()
-    for mot in mots:
-        if mot.startswith("#"):
-            return mot[1:].lower()
-    return None
-
-
 @app.route("/telegram", methods=["POST"])
 def telegram_webhook():
-    data = request.get_json()
+    data = request.json
     print(f">>> Données brutes reçues : {data}")
 
-    if 'message' in data:
-        if 'text' in data['message']:
-            print(f">>> Texte reçu : {data['message']['text']}")
-            texte = data['message']['text']
-            pseudo = data['message']['from']['first_name']
-            avatar_url = f"https://t.me/i/userpic/320/{data['message']['from']['id']}.jpg"
+    if "message" in data:
+        if "text" in data["message"]:
+            text = data["message"]["text"]
+            print(f">>> Texte reçu : {text}")
+            words = text.strip().split()
+            if not words:
+                return "Aucun texte", 200
 
-            hashtag = extraire_hashtag(texte)
+            hashtag = None
+            if words[0].startswith("#"):
+                hashtag = words[0][1:].lower()
             print(f">>> Hashtag extrait : {hashtag}")
 
-            if hashtag:
-                topic = TOPIC_MAP.get(hashtag)
-                if topic:
-                    chat_id = data['message']['chat']['id']
-                    webhook_url = CHAT_ID_TO_WEBHOOK.get(chat_id)
+            topic = TOPIC_MAP.get(hashtag)
+            if not topic:
+                print(f">>> Aucun topic trouvé pour : {hashtag}")
+                return "Aucun topic associé", 200
 
-                    if webhook_url:
-                        payload = {
-                            "username": pseudo,
-                            "avatar_url": avatar_url,
-                            "content": texte,
-                            "thread_name": topic
-                        }
-                        response = requests.post(webhook_url, json=payload)
-                        print(f">>> Réponse Discord : {response.status_code} {response.text}")
-                    else:
-                        print(f">>> Aucun webhook défini pour le chat_id : {chat_id}")
-                else:
-                    print(f">>> Aucun topic trouvé pour : {hashtag}")
-            else:
-                print(">>> Aucun hashtag détecté dans le message.")
-    return "", 200
+            chat_id = data["message"]["chat"]["id"]
+            webhook_url = TELEGRAM_TO_DISCORD.get(chat_id)
+            if not webhook_url:
+                print(f">>> Aucun webhook trouvé pour chat_id : {chat_id}")
+                return "Aucun webhook associé", 200
 
+            sender_name = data["message"]["from"]["first_name"]
+            sender_username = data["message"]["from"].get("username", "")
+            full_name = f"{sender_name} (@{sender_username})" if sender_username else sender_name
+
+            content = " ".join(words[1:]) if hashtag else text
+
+            payload = {
+                "username": full_name,
+                "content": content,
+                "thread_name": topic
+            }
+
+            response = requests.post(webhook_url, json=payload)
+            print(f">>> Requête envoyée à Discord, status : {response.status_code}")
+            return "Message relayé", 200
+        else:
+            print(">>> Pas de texte dans le message")
+            return "Pas de texte", 200
+    else:
+        print(">>> Pas de champ 'message'")
+        return "Pas de message", 200
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
