@@ -38,6 +38,10 @@ def send_to_discord(webhook_url, content, username=None, avatar_url=None):
 def telegram_webhook():
     data = request.json
     print(f">>> Données brutes reçues : {data}")
+    if "message" in data and "text" in data["message"]:
+    print(f">>> Texte reçu : {data['message']['text']}")
+    else:
+    print(">>> Aucun texte détecté dans le message")
 
     message = data.get("message")
     if not message:
