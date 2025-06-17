@@ -1,6 +1,4 @@
-from pathlib import Path
-
-main_py_content = '''import os
+import os
 import requests
 from flask import Flask, request
 from dotenv import load_dotenv
@@ -9,67 +7,68 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Mapping des topics Telegram vers les webhooks Discord
-TOPIC_MAP = {
-    "общий": "ru-general",
-    "genel": "tr-general",
-}
-
 DISCORD_WEBHOOKS = {
     "ru-general": os.getenv("DISCORD_WEBHOOK_RU_GENERAL"),
     "tr-general": os.getenv("DISCORD_WEBHOOK_TR_GENERAL"),
 }
 
+TOPIC_MAP = {
+    "общий": "ru-general",
+    "genel": "tr-general",
+}
+
+def extract_hashtag(text):
+    if not text:
+        return None
+    for word in text.split():
+        if word.startswith("#"):
+            return word[1:].lower()
+    return None
+
+def send_to_discord(webhook_url, content, username=None, avatar_url=None):
+    data = {"content": content}
+    if username:
+        data["username"] = username
+    if avatar_url:
+        data["avatar_url"] = avatar_url
+    response = requests.post(webhook_url, json=data)
+    return response.status_code == 204
+
 @app.route("/telegram", methods=["POST"])
 def telegram_webhook():
-    data = request.get_json()
-    print(">>> Données brutes reçues :", data)
+    data = request.json
+    print(f">>> Données brutes reçues : {data}")
 
     message = data.get("message")
     if not message:
-        return "Aucun message", 400
+        return "No message", 400
 
     chat = message.get("chat", {})
-    chat_id = chat.get("id")
+    if chat.get("type") != "supergroup":
+        return "Not a supergroup", 400
+
     text = message.get("text", "")
+    hashtag = extract_hashtag(text)
+    print(f">>> Hashtag extrait : {hashtag}")
 
-    # Extraction du topic depuis le hashtag
-    topic = "inconnu"
-    if "#" in text:
-        topic = text.split("#")[-1].strip().lower()
+    topic_key = chat.get("title", "").split("-")[-1].lower()
+    topic_id = TOPIC_MAP.get(topic_key)
 
-    print(">>> Hashtag extrait :", topic)
+    if not topic_id:
+        print(">>> Aucun topic trouvé pour :", topic_key)
+        return "No topic found", 400
 
-    discord_channel = TOPIC_MAP.get(topic)
-    if not discord_channel:
-        return "Topic non pris en charge", 200
-
-    webhook_url = DISCORD_WEBHOOKS.get(discord_channel)
+    webhook_url = DISCORD_WEBHOOKS.get(topic_id)
     if not webhook_url:
-        return "Webhook non défini", 500
+        print(">>> Aucun webhook configuré pour :", topic_id)
+        return "No webhook", 400
 
     sender = message.get("from", {})
-    sender_name = sender.get("first_name", "Anonyme")
-    sender_username = sender.get("username", "")
-    full_name = f"{sender_name} (@{sender_username})" if sender_username else sender_name
+    username = sender.get("first_name", "Anon")
+    avatar_url = f"https://t.me/i/userpic/320/{sender.get('username')}.jpg" if sender.get("username") else None
 
-    discord_payload = {
-        "username": full_name,
-        "content": text,
-    }
-
-    response = requests.post(webhook_url, json=discord_payload)
-    if response.status_code != 204:
-        print("Erreur lors de l'envoi à Discord :", response.text)
-        return "Erreur Discord", 500
-
+    send_to_discord(webhook_url, text, username=username, avatar_url=avatar_url)
     return "OK", 200
 
 if __name__ == "__main__":
-    app.run(debug=True)
-'''
-
-main_file_path = Path("/mnt/data/main.py")
-main_file_path.write_text(main_py_content)
-
-main_file_path
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
