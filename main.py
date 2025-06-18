@@ -5,49 +5,61 @@ from flask import Flask, request
 from dotenv import load_dotenv
 
 load_dotenv()
+
 app = Flask(__name__)
 
-# Mapping des groupes Telegram vers les webhooks Discord
+# Associe chaque ID de groupe Telegram au webhook Discord correspondant
 TELEGRAM_TO_DISCORD = {
-    int(os.getenv("TELEGRAM_CHAT_ID_RU")): os.getenv("DISCORD_WEBHOOK_URL_RU"),
-    int(os.getenv("TELEGRAM_CHAT_ID_TR")): os.getenv("DISCORD_WEBHOOK_URL_TR"),
+    int(os.getenv("TELEGRAM_CHAT_ID_RU")): os.getenv("DISCORD_WEBHOOK_RU_GENERAL"),
+    int(os.getenv("TELEGRAM_CHAT_ID_TR")): os.getenv("DISCORD_WEBHOOK_TR_GENERAL")
 }
 
-@app.route("/telegram", methods=["POST"])
-def handle_telegram():
+@app.route('/telegram', methods=['POST'])
+def telegram_webhook():
     data = request.json
-    print(">>> Données brutes reçues :", data)
+    print(f">>> Données brutes reçues : {data}")
 
-    # Vérifie que c'est un message avec texte
-    if not data.get("message"):
-        print(">>> Pas de champ 'message' détecté")
-        return "No message", 200
+    if 'message' in data:
+        message = data['message']
+        chat_id = message['chat']['id']
+        username = message['from']['username'] if 'from' in message and 'username' in message['from'] else "Inconnu"
 
-    if "text" not in data["message"]:
-        print(">>> Message reçu sans texte")
-        return "No text", 200
+        if 'text' in message:
+            text = message['text']
+            print(f">>> Texte reçu : {text}")
 
-    print(f">>> Texte reçu : {data['message']['text']}")
+            # Vérifie s'il y a un hashtag
+            topic_key = None
+            words = text.split()
+            for word in words:
+                if word.startswith("#"):
+                    topic_key = word[1:].lower()
+                    break
+            print(f">>> Hashtag extrait : {topic_key}")
 
-    chat_id = data["message"]["chat"]["id"]
-    username = data["message"]["from"].get("username", "Unknown")
-    text = data["message"]["text"]
+            # Vérifie que le chat_id est attendu
+            if chat_id in TELEGRAM_TO_DISCORD:
+                webhook_url = TELEGRAM_TO_DISCORD[chat_id]
+                print(f">>> Chat ID reconnu : {chat_id}")
+                print(f">>> Envoi à Discord via : {webhook_url}")
 
-    webhook_url = TELEGRAM_TO_DISCORD.get(chat_id)
+                payload = {
+                    "username": f"[TG] {username}",
+                    "content": text
+                }
 
-    if not webhook_url:
-        print(f">>> Aucun webhook trouvé pour chat_id : {chat_id}")
-        return "Unknown chat", 200
-
-    payload = {
-        "username": username,
-        "content": text,
-    }
-
-    response = requests.post(webhook_url, json=payload)
-    print(f">>> Envoi vers Discord : status {response.status_code} | payload : {payload}")
-
-    return "OK", 200
+                response = requests.post(webhook_url, json=payload)
+                print(f">>> Statut Discord : {response.status_code}")
+                return "OK", 200
+            else:
+                print(f">>> Chat ID inconnu : {chat_id}")
+                return "Chat ID non autorisé", 403
+        else:
+            print(">>> Aucun texte trouvé dans le message.")
+            return "Pas de texte", 400
+    else:
+        print(">>> Structure inattendue : pas de champ 'message'")
+        return "Mauvais format", 400
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
