@@ -8,7 +8,7 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Associe chaque ID de groupe Telegram au webhook Discord correspondant
+# Correspondance directe entre ID de groupe Telegram et webhook Discord
 TELEGRAM_TO_DISCORD = {
     int(os.getenv("TELEGRAM_CHAT_ID_RU")): os.getenv("DISCORD_WEBHOOK_RU_GENERAL"),
     int(os.getenv("TELEGRAM_CHAT_ID_TR")): os.getenv("DISCORD_WEBHOOK_TR_GENERAL")
@@ -28,18 +28,9 @@ def telegram_webhook():
             text = message['text']
             print(f">>> Texte reçu : {text}")
 
-            # Vérifie s'il y a un hashtag
-            topic_key = None
-            words = text.split()
-            for word in words:
-                if word.startswith("#"):
-                    topic_key = word[1:].lower()
-                    break
-            print(f">>> Hashtag extrait : {topic_key}")
-
-            # Vérifie que le chat_id est attendu
-            if chat_id in TELEGRAM_TO_DISCORD:
-                webhook_url = TELEGRAM_TO_DISCORD[chat_id]
+            # Envoi direct sans hashtag
+            webhook_url = TELEGRAM_TO_DISCORD.get(chat_id)
+            if webhook_url:
                 print(f">>> Chat ID reconnu : {chat_id}")
                 print(f">>> Envoi à Discord via : {webhook_url}")
 
