@@ -17,8 +17,11 @@ TELEGRAM_TO_DISCORD = {
 # Mappage des hashtags vers les topics Discord
 TOPIC_MAP = {
     "общий": "ru-general",
+    "ru": "ru-general",
     "genel": "tr-general",
+    "tr": "tr-general",
 }
+
 
 @app.route("/telegram", methods=["POST"])
 def telegram_webhook():
